@@ -7,7 +7,11 @@
 # code easily while grading your problem set.
 
 import random
+
+import numpy
+
 import constants as c
+
 
 #######
 # Task 1a #
@@ -26,6 +30,7 @@ def new_game(n):
     matrix = add_two(matrix)
     return matrix
 
+
 ###########
 # Task 1b #
 ###########
@@ -36,13 +41,30 @@ def new_game(n):
 # 1 mark for creating the correct loop
 
 def add_two(mat):
-    a = random.randint(0, len(mat)-1)
-    b = random.randint(0, len(mat)-1)
+    a = random.randint(0, len(mat) - 1)
+    b = random.randint(0, len(mat) - 1)
     while mat[a][b] != 0:
-        a = random.randint(0, len(mat)-1)
-        b = random.randint(0, len(mat)-1)
+        a = random.randint(0, len(mat) - 1)
+        b = random.randint(0, len(mat) - 1)
     mat[a][b] = 2
     return mat
+
+
+def add_two_or_four(mat):
+    a = random.randint(0, len(mat) - 1)
+    b = random.randint(0, len(mat) - 1)
+    # Find a random cell, if not blank, find next.
+    while mat[a][b] != 0:
+        a = random.randint(0, len(mat) - 1)
+        b = random.randint(0, len(mat) - 1)
+
+    if random.randint(0, 9) < 9:
+        mat[a][b] = 2
+    else:
+        mat[a][b] = 4
+
+    return mat
+
 
 ###########
 # Task 1c #
@@ -68,19 +90,20 @@ def game_state(mat):
             if mat[i][j] == 0:
                 return 'not over'
     # check for same cells that touch each other
-    for i in range(len(mat)-1):
+    for i in range(len(mat) - 1):
         # intentionally reduced to check the row on the right and below
         # more elegant to use exceptions but most likely this will be their solution
-        for j in range(len(mat[0])-1):
-            if mat[i][j] == mat[i+1][j] or mat[i][j+1] == mat[i][j]:
+        for j in range(len(mat[0]) - 1):
+            if mat[i][j] == mat[i + 1][j] or mat[i][j + 1] == mat[i][j]:
                 return 'not over'
-    for k in range(len(mat)-1):  # to check the left/right entries on the last row
-        if mat[len(mat)-1][k] == mat[len(mat)-1][k+1]:
+    for k in range(len(mat) - 1):  # to check the left/right entries on the last row
+        if mat[len(mat) - 1][k] == mat[len(mat) - 1][k + 1]:
             return 'not over'
-    for j in range(len(mat)-1):  # check up/down entries on last column
-        if mat[j][len(mat)-1] == mat[j+1][len(mat)-1]:
+    for j in range(len(mat) - 1):  # check up/down entries on last column
+        if mat[j][len(mat) - 1] == mat[j + 1][len(mat) - 1]:
             return 'not over'
     return 'lose'
+
 
 ###########
 # Task 2a #
@@ -97,8 +120,9 @@ def reverse(mat):
     for i in range(len(mat)):
         new.append([])
         for j in range(len(mat[0])):
-            new[i].append(mat[i][len(mat[0])-j-1])
+            new[i].append(mat[i][len(mat[0]) - j - 1])
     return new
+
 
 ###########
 # Task 2b #
@@ -117,6 +141,7 @@ def transpose(mat):
         for j in range(len(mat)):
             new[i].append(mat[j][i])
     return new
+
 
 ##########
 # Task 3 #
@@ -149,17 +174,19 @@ def cover_up(mat):
                 count += 1
     return new, done
 
+
 def merge(mat, done):
     for i in range(c.GRID_LEN):
-        for j in range(c.GRID_LEN-1):
-            if mat[i][j] == mat[i][j+1] and mat[i][j] != 0:
+        for j in range(c.GRID_LEN - 1):
+            if mat[i][j] == mat[i][j + 1] and mat[i][j] != 0:
                 mat[i][j] *= 2
-                mat[i][j+1] = 0
+                mat[i][j + 1] = 0
                 done = True
     return mat, done
 
+
 def up(game):
-    print("up")
+    # print("up")
     # return matrix after shifting up
     game = transpose(game)
     game, done = cover_up(game)
@@ -168,8 +195,9 @@ def up(game):
     game = transpose(game)
     return game, done
 
+
 def down(game):
-    print("down")
+    # print("down")
     # return matrix after shifting down
     game = reverse(transpose(game))
     game, done = cover_up(game)
@@ -178,16 +206,18 @@ def down(game):
     game = transpose(reverse(game))
     return game, done
 
+
 def left(game):
-    print("left")
+    # print("left")
     # return matrix after shifting left
     game, done = cover_up(game)
     game, done = merge(game, done)
     game = cover_up(game)[0]
     return game, done
 
+
 def right(game):
-    print("right")
+    # print("right")
     # return matrix after shifting right
     game = reverse(game)
     game, done = cover_up(game)
@@ -195,3 +225,64 @@ def right(game):
     game = cover_up(game)[0]
     game = reverse(game)
     return game, done
+
+
+# This is the scoring according to how many times the matrix breaks the monotone in all rows and columns.
+# The larger the score is, the worse the matrix is.
+def score_monotone(mat):
+    return score_monotone_for_rows(mat) + score_monotone_for_rows(transpose(mat))
+
+
+# For each column
+def score_monotone_for_rows(mat):
+    rst_score = 0
+    # For each row
+    for each_row in mat:
+        previous_item = 0
+        previous_tone = 'unknown'
+        for index, each_item in enumerate(each_row):
+            if each_item != 0 and index > 0:
+                if previous_item != 0 and previous_tone == 'unknown':
+                    if previous_item > each_item:
+                        previous_tone = 'dec'
+                    elif previous_item < each_item:
+                        previous_tone = 'inc'
+                elif previous_tone == 'inc':
+                    if previous_item > each_item:
+                        rst_score += 1
+                        previous_tone = 'dec'
+                elif previous_tone == 'dec':
+                    if previous_item < each_item:
+                        rst_score += 1
+                        previous_tone = 'inc'
+
+            if each_item != 0:
+                previous_item = each_item
+
+    return rst_score
+
+
+def score_number_of_squares(mat):
+    rst_score = 0
+    for each_row in mat:
+        rst_score += (len(each_row) - each_row.count(0))
+
+    return rst_score
+
+
+def score_number_of_empty_squares(mat):
+    rst_score = 0
+    for each_row in mat:
+        rst_score += each_row.count(0)
+
+    return rst_score
+
+
+def score_weighted_squares(mat):
+    rst_score = 0
+    for each_row in mat:
+        for each_item in each_row:
+            if each_item != 0:
+                rst_score += numpy.log2(each_item)
+
+    return rst_score

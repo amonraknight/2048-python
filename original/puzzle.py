@@ -1,11 +1,12 @@
 import random
 import threading
-import time
 from tkinter import Frame, Label, CENTER, Button
 
-import autosolve
+from stopwatch import Stopwatch
+
 import constants as c
-import logic
+from original import logic, autosolve
+
 
 def gen():
     return random.randint(0, c.GRID_LEN - 1)
@@ -20,7 +21,8 @@ class GameGrid(Frame):
 
         # A button to start auto-solve
         Button(frame, text='Auto-Solve', command=self.start_auto_solve_thread).grid(column=1, row=0)
-        Button(frame, text='Refresh', command=self.refresh).grid(column=1, row=1)
+        Button(frame, text='Repeat Auto-Solve', command=self.start_repeating_auto_solve_thread).grid(column=1, row=1)
+        Button(frame, text='Refresh', command=self.refresh).grid(column=1, row=2)
 
         self.master.bind("<Key>", self.key_down)
 
@@ -42,8 +44,9 @@ class GameGrid(Frame):
         self.grid_cells = []
         self.init_grid()
         self.matrix = logic.new_game(c.GRID_LEN)
-        self.history_matrixs = []
         self.update_grid_cells()
+        # Timing
+        self.stop_watch = Stopwatch()
 
         self.mainloop()
 
@@ -81,8 +84,8 @@ class GameGrid(Frame):
     def refresh(self):
         self.step_count = 0
         self.matrix = logic.new_game(c.GRID_LEN)
-        self.history_matrixs = []
         self.update_grid_cells()
+        self.stop_watch.stop()
 
     def update_grid_cells(self):
         for i in range(c.GRID_LEN):
@@ -103,34 +106,39 @@ class GameGrid(Frame):
         print(event)
         if key == c.KEY_QUIT:
             exit()
-        if key == c.KEY_BACK and len(self.history_matrixs) > 1:
-            self.matrix = self.history_matrixs.pop()
-            self.update_grid_cells()
-            print('back on step total step:', len(self.history_matrixs))
         elif key in self.commands:
             self.commit_move(key)
 
     def commit_move(self, key):
+
+        if not self.stop_watch.running:
+            self.stop_watch.start()
+
         self.matrix, done = self.commands[key](self.matrix)
         # Print the score
 
         if done:
             self.step_count += 1
             self.matrix = logic.add_two_or_four(self.matrix)
+            '''
             print("The monotone score: " + str(logic.score_monotone(self.matrix)) +
                   " square amount score: " + str(logic.score_number_of_squares(self.matrix)) +
                   " weighted square amount score: " + str(logic.score_weighted_squares(self.matrix)))
+            '''
             # record last move
-            self.history_matrixs.append(self.matrix)
             self.update_grid_cells()
-            if logic.game_state(self.matrix) == 'win':
-                self.grid_cells[1][1].configure(text="You", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
-                self.grid_cells[1][2].configure(text="Win!", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
-                print("Total steps: "+str(self.step_count))
-            if logic.game_state(self.matrix) == 'lose':
-                self.grid_cells[1][1].configure(text="You", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
-                self.grid_cells[1][2].configure(text="Lose!", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
-                print("Total steps: "+str(self.step_count))
+            state = logic.game_state(self.matrix)
+
+            if state != 'not over':
+                self.stop_watch.stop()
+                if state == 'win':
+                    self.grid_cells[1][1].configure(text="You", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
+                    self.grid_cells[1][2].configure(text="Win!", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
+                elif state == 'lose':
+                    self.grid_cells[1][1].configure(text="You", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
+                    self.grid_cells[1][2].configure(text="Lose!", bg=c.BACKGROUND_COLOR_CELL_EMPTY)
+                time_cost = round(self.stop_watch.duration, 0)
+                print("State: " + state + " Time cost: " + str(time_cost) + " Total steps: " + str(self.step_count))
 
     def generate_next(self):
         index = (gen(), gen())
@@ -146,7 +154,7 @@ class GameGrid(Frame):
     def auto_solve(self):
         current_status = logic.game_state(self.matrix)
         while current_status != 'win' and current_status != 'lose':
-            #next_step = autosolve.get_solution_1(self.matrix)
+            # next_step = autosolve.get_solution_1(self.matrix)
             next_step = autosolve.get_solution_2(self.matrix)
             if next_step == 'STOP':
                 break
@@ -154,7 +162,27 @@ class GameGrid(Frame):
                 self.commit_move(next_step)
                 current_status = logic.game_state(self.matrix)
 
-            #time.sleep(1)
+    def start_repeating_auto_solve_thread(self):
+        thread = threading.Thread(target=self.repeating_auto_solve, args=())
+        thread.setDaemon(True)
+        thread.start()  # 启动线程
+
+    def repeating_auto_solve(self):
+
+        for test_round in range(1, 1000):
+
+            current_status = logic.game_state(self.matrix)
+            while current_status != 'win' and current_status != 'lose':
+
+                next_step = autosolve.get_solution_2_cache(autosolve.convert_matrix_to_string(self.matrix))
+                if next_step == 'STOP':
+                    break
+                else:
+                    self.commit_move(next_step)
+                    current_status = logic.game_state(self.matrix)
+
+            # refresh
+            self.refresh()
 
 
 game_grid = GameGrid()

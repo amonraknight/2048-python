@@ -8,7 +8,7 @@
 
 import random
 
-import numpy
+import numpy as np
 
 import constants as c
 
@@ -22,12 +22,13 @@ import constants as c
 # Matrix elements must be equal but not identical
 # 1 mark for creating the correct matrix
 
+
 def new_game(n):
-    matrix = []
-    for i in range(n):
-        matrix.append([0] * n)
-    matrix = add_two(matrix)
-    matrix = add_two(matrix)
+    matrix = np.zeros((n, n), dtype=np.int)
+
+    matrix = add_two_or_four(matrix)
+    matrix = add_two_or_four(matrix)
+
     return matrix
 
 
@@ -39,16 +40,6 @@ def new_game(n):
 # Points to note:
 # Must ensure that it is created on a zero entry
 # 1 mark for creating the correct loop
-
-def add_two(mat):
-    a = random.randint(0, len(mat) - 1)
-    b = random.randint(0, len(mat) - 1)
-    while mat[a][b] != 0:
-        a = random.randint(0, len(mat) - 1)
-        b = random.randint(0, len(mat) - 1)
-    mat[a][b] = 2
-    return mat
-
 
 def add_two_or_four(mat):
     a = random.randint(0, len(mat) - 1)
@@ -80,28 +71,25 @@ def add_two_or_four(mat):
 
 def game_state(mat):
     # check for win cell
-    for i in range(len(mat)):
-        for j in range(len(mat[0])):
-            if mat[i][j] == 2048:
-                return 'win'
-    # check for any zero entries
-    for i in range(len(mat)):
-        for j in range(len(mat[0])):
-            if mat[i][j] == 0:
+    if np.any(mat == 2048):
+        return 'win'
+    elif np.any(mat == 0):
+        return 'not over'
+    else:
+        # check for same cells that touch each other
+        for i in range(len(mat) - 1):
+            # intentionally reduced to check the row on the right and below
+            # more elegant to use exceptions but most likely this will be their solution
+            for j in range(len(mat[0]) - 1):
+                if mat[i][j] == mat[i + 1][j] or mat[i][j + 1] == mat[i][j]:
+                    return 'not over'
+        for k in range(len(mat) - 1):  # to check the left/right entries on the last row
+            if mat[len(mat) - 1][k] == mat[len(mat) - 1][k + 1]:
                 return 'not over'
-    # check for same cells that touch each other
-    for i in range(len(mat) - 1):
-        # intentionally reduced to check the row on the right and below
-        # more elegant to use exceptions but most likely this will be their solution
-        for j in range(len(mat[0]) - 1):
-            if mat[i][j] == mat[i + 1][j] or mat[i][j + 1] == mat[i][j]:
+        for j in range(len(mat) - 1):  # check up/down entries on last column
+            if mat[j][len(mat) - 1] == mat[j + 1][len(mat) - 1]:
                 return 'not over'
-    for k in range(len(mat) - 1):  # to check the left/right entries on the last row
-        if mat[len(mat) - 1][k] == mat[len(mat) - 1][k + 1]:
-            return 'not over'
-    for j in range(len(mat) - 1):  # check up/down entries on last column
-        if mat[j][len(mat) - 1] == mat[j + 1][len(mat) - 1]:
-            return 'not over'
+
     return 'lose'
 
 
@@ -114,14 +102,10 @@ def game_state(mat):
 # 0 marks for completely incorrect solutions
 # 1 mark for solutions that show general understanding
 # 2 marks for correct solutions that work for all sizes of matrices
+# Reverse horizontally
 
 def reverse(mat):
-    new = []
-    for i in range(len(mat)):
-        new.append([])
-        for j in range(len(mat[0])):
-            new[i].append(mat[i][len(mat[0]) - j - 1])
-    return new
+    return mat[:, ::-1]
 
 
 ###########
@@ -135,53 +119,43 @@ def reverse(mat):
 # 2 marks for correct solutions that work for all sizes of matrices
 
 def transpose(mat):
-    new = []
-    for i in range(len(mat[0])):
-        new.append([])
-        for j in range(len(mat)):
-            new[i].append(mat[j][i])
-    return new
+    return mat.transpose()
 
 
 ##########
 # Task 3 #
 ##########
 
-# [Marking Scheme]
-# Points to note:
-# The way to do movement is compress -> merge -> compress again
-# Basically if they can solve one side, and use transpose and reverse correctly they should
-# be able to solve the entire thing just by flipping the matrix around
-# No idea how to grade this one at the moment. I have it pegged to 8 (which gives you like,
-# 2 per up/down/left/right?) But if you get one correct likely to get all correct so...
-# Check the down one. Reverse/transpose if ordered wrongly will give you wrong result.
-
-def cover_up(mat):
-    new = []
-    for j in range(c.GRID_LEN):
-        partial_new = []
-        for i in range(c.GRID_LEN):
-            partial_new.append(0)
-        new.append(partial_new)
+# "done" is true when any cell moved or merged. Otherwise, false.
+def shuffle_to_left(mat):
     done = False
     for i in range(c.GRID_LEN):
-        count = 0
-        for j in range(c.GRID_LEN):
-            if mat[i][j] != 0:
-                new[i][count] = mat[i][j]
-                if j != count:
-                    done = True
-                count += 1
-    return new, done
-
-
-def merge(mat, done):
-    for i in range(c.GRID_LEN):
-        for j in range(c.GRID_LEN - 1):
-            if mat[i][j] == mat[i][j + 1] and mat[i][j] != 0:
-                mat[i][j] *= 2
-                mat[i][j + 1] = 0
+        pos_l, pos_r = 0, 1
+        while pos_r < c.GRID_LEN:
+            # m,n>0; m!=n
+            # 0, 0
+            if mat[i][pos_l] == mat[i][pos_r] and mat[i][pos_r] == 0:
+                pos_r += 1
+            # 0, m
+            elif mat[i][pos_l] == 0 and mat[i][pos_r] > 0:
+                mat[i][pos_l] = mat[i][pos_r]
+                mat[i][pos_r] = 0
+                pos_l = pos_r
+                pos_r += 1
                 done = True
+            # m, m
+            elif mat[i][pos_l] == mat[i][pos_r] and mat[i][pos_r] > 0:
+                mat[i][pos_l] *= 2
+                mat[i][pos_r] == 0
+                pos_l = pos_r
+                pos_r += 1
+                done = True
+            # m, 0
+            # m, n
+            elif mat[i][pos_l] > 0 and mat[i][pos_r] == 0:
+                pos_l += 1
+                pos_r += 1
+
     return mat, done
 
 
@@ -189,9 +163,7 @@ def up(game):
     # print("up")
     # return matrix after shifting up
     game = transpose(game)
-    game, done = cover_up(game)
-    game, done = merge(game, done)
-    game = cover_up(game)[0]
+    game, done = shuffle_to_left(game)
     game = transpose(game)
     return game, done
 
@@ -200,9 +172,7 @@ def down(game):
     # print("down")
     # return matrix after shifting down
     game = reverse(transpose(game))
-    game, done = cover_up(game)
-    game, done = merge(game, done)
-    game = cover_up(game)[0]
+    game, done = shuffle_to_left(game)
     game = transpose(reverse(game))
     return game, done
 
@@ -210,9 +180,7 @@ def down(game):
 def left(game):
     # print("left")
     # return matrix after shifting left
-    game, done = cover_up(game)
-    game, done = merge(game, done)
-    game = cover_up(game)[0]
+    game, done = shuffle_to_left(game)
     return game, done
 
 
@@ -220,9 +188,7 @@ def right(game):
     # print("right")
     # return matrix after shifting right
     game = reverse(game)
-    game, done = cover_up(game)
-    game, done = merge(game, done)
-    game = cover_up(game)[0]
+    game, done = shuffle_to_left(game)
     game = reverse(game)
     return game, done
 
@@ -234,6 +200,7 @@ def score_monotone(mat):
 
 
 # For each column
+
 def score_monotone_for_rows(mat):
     rst_score = 0
     # For each row
@@ -271,11 +238,8 @@ def score_number_of_squares(mat):
 
 
 def score_number_of_empty_squares(mat):
-    rst_score = 0
-    for each_row in mat:
-        rst_score += each_row.count(0)
-
-    return rst_score
+    cnt_array = np.where(mat, 0, 1)
+    return np.sum(cnt_array)
 
 
 def score_weighted_squares(mat):
@@ -283,6 +247,6 @@ def score_weighted_squares(mat):
     for each_row in mat:
         for each_item in each_row:
             if each_item != 0:
-                rst_score += numpy.log2(each_item)
+                rst_score += np.log2(each_item)
 
     return rst_score

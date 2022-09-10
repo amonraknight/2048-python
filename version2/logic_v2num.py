@@ -105,7 +105,8 @@ def game_state(mat):
 # Reverse horizontally
 
 def reverse(mat):
-    return mat[:, ::-1]
+    new_mat = mat.copy()
+    return new_mat[:, ::-1]
 
 
 ###########
@@ -119,7 +120,8 @@ def reverse(mat):
 # 2 marks for correct solutions that work for all sizes of matrices
 
 def transpose(mat):
-    return mat.transpose()
+    new_mat = mat.copy()
+    return new_mat.transpose()
 
 
 ##########
@@ -128,35 +130,40 @@ def transpose(mat):
 
 # "done" is true when any cell moved or merged. Otherwise, false.
 def shuffle_to_left(mat):
+    new_mat = mat.copy()
     done = False
     for i in range(c.GRID_LEN):
+        # There must be no cells or only 0s between pos_l, pos_r
         pos_l, pos_r = 0, 1
-        while pos_r < c.GRID_LEN:
+        while not np.all(new_mat[i] == 0) and pos_r < c.GRID_LEN:
             # m,n>0; m!=n
             # 0, 0
-            if mat[i][pos_l] == mat[i][pos_r] and mat[i][pos_r] == 0:
+            if new_mat[i][pos_l] == new_mat[i][pos_r] and new_mat[i][pos_r] == 0:
                 pos_r += 1
             # 0, m
-            elif mat[i][pos_l] == 0 and mat[i][pos_r] > 0:
-                mat[i][pos_l] = mat[i][pos_r]
-                mat[i][pos_r] = 0
-                pos_l = pos_r
+            elif new_mat[i][pos_l] == 0 and new_mat[i][pos_r] > 0:
+                new_mat[i][pos_l] = new_mat[i][pos_r]
+                new_mat[i][pos_r] = 0
                 pos_r += 1
                 done = True
             # m, m
-            elif mat[i][pos_l] == mat[i][pos_r] and mat[i][pos_r] > 0:
-                mat[i][pos_l] *= 2
-                mat[i][pos_r] == 0
-                pos_l = pos_r
+            elif new_mat[i][pos_l] == new_mat[i][pos_r] and new_mat[i][pos_r] > 0:
+                new_mat[i][pos_l] *= 2
+                new_mat[i][pos_r] = 0
+                pos_l += 1
                 pos_r += 1
                 done = True
             # m, 0
-            # m, n
-            elif mat[i][pos_l] > 0 and mat[i][pos_r] == 0:
-                pos_l += 1
+            elif new_mat[i][pos_l] > 0 and new_mat[i][pos_r] == 0:
                 pos_r += 1
+            # m, n
+            elif 0 < new_mat[i][pos_l] != new_mat[i][pos_r] > 0:
+                pos_l += 1
+                pos_r = pos_l + 1
+            else:
+                print(new_mat[i])
 
-    return mat, done
+    return new_mat, done
 
 
 def up(game):
@@ -230,11 +237,7 @@ def score_monotone_for_rows(mat):
 
 
 def score_number_of_squares(mat):
-    rst_score = 0
-    for each_row in mat:
-        rst_score += (len(each_row) - each_row.count(0))
-
-    return rst_score
+    return c.GRID_LEN * c.GRID_LEN - score_number_of_empty_squares(mat)
 
 
 def score_number_of_empty_squares(mat):

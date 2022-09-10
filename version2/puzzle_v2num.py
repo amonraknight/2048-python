@@ -1,5 +1,6 @@
 import random
 import threading
+import time
 from tkinter import Frame, Label, CENTER, Button
 
 from stopwatch import Stopwatch
@@ -84,9 +85,8 @@ class GameGrid(Frame):
     def refresh(self):
         self.step_count = 0
         self.matrix = logic_v2num.new_game(c.GRID_LEN)
-        self.history_matrixs = []
         self.update_grid_cells()
-        self.stop_watch.stop()
+        self.stop_watch.reset()
 
     def update_grid_cells(self):
         for i in range(c.GRID_LEN):
@@ -121,11 +121,11 @@ class GameGrid(Frame):
         if done:
             self.step_count += 1
             self.matrix = logic_v2num.add_two_or_four(self.matrix)
-
+            '''
             print("The monotone score: " + str(logic_v2num.score_monotone(self.matrix)) +
                   " square amount score: " + str(logic_v2num.score_number_of_squares(self.matrix)) +
                   " weighted square amount score: " + str(logic_v2num.score_weighted_squares(self.matrix)))
-
+            '''
 
             # record last move
             self.update_grid_cells()
@@ -156,13 +156,14 @@ class GameGrid(Frame):
     def auto_solve(self):
         current_status = logic_v2num.game_state(self.matrix)
         while current_status != 'win' and current_status != 'lose':
-            # next_step = autosolve.get_solution_1(self.matrix)
-            next_step = autosolve_v2num.get_solution_2(self.matrix)
+            # next_step = autosolve_v2num.get_solution_2(self.matrix)
+            next_step = autosolve_v2num.get_solution_2_cache(autosolve_v2num.convert_matrix_to_string(self.matrix))
             if next_step == 'STOP':
                 break
             else:
                 self.commit_move(next_step)
                 current_status = logic_v2num.game_state(self.matrix)
+            # time.sleep(1)
 
     def start_repeating_auto_solve_thread(self):
         thread = threading.Thread(target=self.repeating_auto_solve, args=())
@@ -176,7 +177,8 @@ class GameGrid(Frame):
             current_status = logic_v2num.game_state(self.matrix)
             while current_status != 'win' and current_status != 'lose':
 
-                next_step = autosolve_v2num.get_solution_2(self.matrix)
+                # next_step = autosolve_v2num.get_solution_2(self.matrix)
+                next_step = autosolve_v2num.get_solution_2_cache(autosolve_v2num.convert_matrix_to_string(self.matrix))
                 if next_step == 'STOP':
                     break
                 else:

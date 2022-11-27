@@ -13,7 +13,7 @@ commands = {
 
 
 def get_comprehensive_score(mat):
-    return logic.score_monotone(mat) * 50 + logic.score_weighted_squares(mat)
+    return logic.score_monotone(mat) + logic.score_weighted_squares(mat)
 
 
 @lru_cache

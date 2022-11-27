@@ -168,9 +168,8 @@ class GameGrid(Frame):
         thread.start()  # 启动线程
 
     def repeating_auto_solve(self):
-
-        for test_round in range(1, 1000):
-
+        win_count = 0
+        for test_round in range(1, 100):
             current_status = logic.game_state(self.matrix)
             while current_status != 'win' and current_status != 'lose':
 
@@ -182,7 +181,10 @@ class GameGrid(Frame):
                     current_status = logic.game_state(self.matrix)
 
             # refresh
+            if current_status == 'win':
+                win_count += 1
             self.refresh()
+        print('win_count: {}'.format(str(win_count)))
 
 
 game_grid = GameGrid()

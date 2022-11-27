@@ -280,10 +280,10 @@ def score_number_of_empty_squares(mat):
 
 
 def score_weighted_squares(mat):
-    rst_score = 0
+    rst_score = 0.0
     for each_row in mat:
         for each_item in each_row:
             if each_item != 0:
-                rst_score += numpy.log2(each_item)
+                rst_score += 1/numpy.log2(each_item)
 
     return rst_score
